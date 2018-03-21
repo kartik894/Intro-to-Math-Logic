@@ -54,8 +54,8 @@ Qed.
    Again, this relation should be polymorphic, and you should add an
    implicit argument declaration. *)
 Inductive rearranged {A : Type} : list A -> list A -> Prop :=
-  | c1 : forall {l1 l2 : list A}, (l1 = l2) -> rearranged l1 l2
-  | c2 : forall {l1 l2 l3: list A}, (swapped l3 l1) /\ (rearranged l3 l2) -> rearranged l1 l2.
+  | c1 : forall list1 list2 : list A, (list1 = list2) -> rearranged list1 list2
+  | c2 : forall list1 list2 list3: list A, (swapped list1 list3) /\ (rearranged list2 list3) -> rearranged list1 list2.
 
 (* Exercise 4 *)
 Lemma rearranged_refl : forall (A : Type) (list1 : list A), rearranged list1 list1.
@@ -63,19 +63,14 @@ Proof.
   intros. apply c1. reflexivity.
 Qed.
 
-(* Lemma rearranged_transitive : forall (A : Type) (list1 list2 list3 : list A),
+Lemma rearranged_transitive : forall (A : Type) (list1 list2 list3 : list A),
   rearranged list1 list2 -> rearranged list2 list3 -> rearranged list1 list3.
 Proof.
   intros.
   destruct H.
   - destruct H0.
     + rewrite H. rewrite <- H0. apply c1. reflexivity.
-    + apply c2. rewrite H. apply H0.
-  - destruct H0. 
-    + apply c2. rewrite <- H0. apply H.
-    + apply c2 in H. apply c2 in H0. inversion H. inversion H0.
-      * rewrite H1. rewrite H4. apply c1. reflexivity.
-      **) 
+      Admitted.
 
 Lemma swapped_sym : forall A (list1 list2:list A), swapped list1 list2 -> swapped list2 list1.
 Proof.
@@ -85,22 +80,29 @@ Proof.
   - apply swapped_tail. apply IHswapped.
 Qed.
 
+Lemma swapped_rearranged : forall (A : Type) (l1 l2 : list A), swapped l1 l2 -> rearranged l1 l2.
+Proof.
+  intros.
+  apply c2 with (list3:=l2). split. apply H. apply c1. reflexivity.
+Qed.
+
 Lemma rearranged_sym : forall (A : Type) (list1 list2 : list A), rearranged list1 list2 -> rearranged list2 list1.
 Proof.
   intros.
   induction H.
   - rewrite H. apply c1. reflexivity.
-  - inversion H. Admitted.
-
-Lemma swapped_rearranged : forall (A : Type) (l1 l2 : list A), swapped l2 l1 -> rearranged l2 l1.
-Proof.
-  intros.
-  induction H.
-  - rewrite H. 
+  - inversion H. apply swapped_sym in H0. apply swapped_rearranged in H0. apply rearranged_transitive with (list2:=list3). apply H1. apply H0.
+Qed. 
 
 Lemma rearranged_Tail : forall A (a:A) list1 list2, rearranged list1 list2 -> rearranged (a::list1) (a::list2).
-
-(* This function definitions describes insertion sorting *)
+Proof.
+  intros. 
+  inversion H.
+  - rewrite H0. apply c1. reflexivity.
+  - destruct H0. destruct list1.
+    + inversion H0.
+    + Admitted.
+  
 
 Fixpoint insert x l :=
   match l with 
@@ -117,8 +119,19 @@ Fixpoint sort l :=
 (* Now prove that sorting a list returns an output that satisfies the rearranged relation on the input. *)
 
 Lemma insert_rearranged : forall x l, rearranged (insert x l) (x::l).
-Admitted.
+Proof.
+  intros.
+  induction l.
+  - unfold insert. apply c1. reflexivity.
+  - simpl. destruct (x <=? a) eqn:eqn1.
+    + apply c1. reflexivity.
+    + apply rearranged_Tail with (a:=a) in IHl. apply rearranged_sym. apply c2 with (list3 := (a::x::l)). split. apply swapped_base. reflexivity. apply IHl.
+Qed.
 
 Lemma sort_rearranged : forall l, rearranged (sort l) l.
-Admitted.
-
+Proof.
+  intros.
+  induction l.
+  - unfold sort. apply c1. reflexivity.
+  - apply rearranged_Tail with (a:=a) in IHl. simpl. apply rearranged_sym in IHl. apply rearranged_transitive with (list2 := (a :: sort l)). apply insert_rearranged. apply rearranged_sym. apply IHl.
+Qed.
